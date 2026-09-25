@@ -6,12 +6,9 @@ import { revalidatePath } from "next/cache";
 import { request } from "@arcjet/next";
 import aj from "@/lib/arcjet";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleGenAI } from "@google/genai";
 
 const genAI = process.env.GEMINI_API_KEY
-  ? new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    })
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
 
 const serializeAmount=(obj)=>({
@@ -264,28 +261,19 @@ Return ONLY valid JSON.
 If this is not a receipt, return {}.
 `;
 
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: prompt,
-            },
-            {
-              inlineData: {
-                mimeType: file.type,
-                data: base64String,
-              },
-            },
-          ],
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: base64String,
+          mimeType: file.type,
         },
-      ],
-    });
+      },
+      prompt,
+    ]);
 
-    const text = response.text;
+    const text = result.response.text();
 
     console.log("Gemini Response:");
     console.log(text);

@@ -3,7 +3,7 @@ import { Resend } from "resend";
 
 export async function sendEmail({ to, subject, react }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL || "Wealth <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM_EMAIL || "Fintrack <onboarding@resend.dev>";
 
   if (!apiKey) {
     const error = new Error("RESEND_API_KEY is not configured.");

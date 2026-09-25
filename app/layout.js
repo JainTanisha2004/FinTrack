@@ -6,7 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 
 export const metadata = {
-  title: "Wealth",
+  title: "Fintrack",
   description: "One Stop Finance Platform",
 };
 
