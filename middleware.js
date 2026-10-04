@@ -12,21 +12,23 @@ const isPublicApiRoute = createRouteMatcher([
   "/api/inngest",
 ]);
 
-const aj=arcjet({
-  key:process.env.ARCJET_KEY,
-  rules:[
+const aj = arcjet({
+  key: process.env.ARCJET_KEY,
+  rules: [
     shield({
-      mode:'LIVE'
+      mode: 'LIVE',
     }),
     detectBot({
-      mode:"LIVE",
-      allow:[
-        "CATEGORY:SEARCH_ENGINE","GO_HTTP"
+      mode: "LIVE",
+      allow: [
+        "CATEGORY:SEARCH_ENGINE",
+        "GO_HTTP",
       ],
     }),
   ],
 });
-const clerk= clerkMiddleware(async (auth, req) => {
+
+const clerk = clerkMiddleware(async (auth, req) => {
   if (isPublicApiRoute(req)) {
     return NextResponse.next();
   }
@@ -38,7 +40,21 @@ const clerk= clerkMiddleware(async (auth, req) => {
   }
 });
 
-export default createMiddleware(aj,clerk);
+const ajMiddleware = createMiddleware(aj, clerk);
+
+export default async function middleware(req, event) {
+  // Skip Arcjet payload parsing for Server Action POST requests
+  if (req.headers.has('next-action') || req.headers.has('x-action-id')) {
+    return clerk(req, event);
+  }
+
+  try {
+    return await ajMiddleware(req, event);
+  } catch (err) {
+    console.warn("[Middleware] Arcjet check error, falling back to Clerk:", err?.message);
+    return clerk(req, event);
+  }
+}
 
 export const config = {
   matcher: [

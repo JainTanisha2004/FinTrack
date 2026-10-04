@@ -170,7 +170,7 @@ export default function ForecastPage() {
               
               <div className="space-y-4">
                 <p className="text-gray-700 leading-relaxed font-medium">
-                  "{insight}"
+                  &quot;{insight}&quot;
                 </p>
                 {suggestion && (
                   <div className="bg-white/60 p-4 rounded-xl border border-white">

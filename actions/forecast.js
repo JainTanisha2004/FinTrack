@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/prisma";
 import { genAI } from "@/lib/ai/gemini";
 import { addDays, isBefore, isAfter, startOfDay, addWeeks, addMonths, addYears } from "date-fns";
+import { recordForecastMemory } from "@/lib/ai/advisor/memory/memory-pipeline";
 
 function serializeAmount(value) {
   return value ? value.toNumber() : 0;
@@ -145,13 +146,31 @@ export async function getForecast() {
     let insight = "Insight:\nYour spending pattern is healthy.\n\nSuggestion:\nYou are on track for a stable month.";
     
     if (genAI) {
+      const candidateModels = ["gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.7-flash", "gemini-3.8-flash"];
+      for (const m of candidateModels) {
         try {
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-            const result = await model.generateContent(prompt);
+          const model = genAI.getGenerativeModel({ model: m });
+          const result = await model.generateContent(prompt);
+          if (result?.response?.text) {
             insight = result.response.text();
+            break;
+          }
         } catch (error) {
-            console.error("Gemini Forecast Error:", error);
+          console.error(`Gemini Forecast Error (${m}):`, error.message);
         }
+      }
+    }
+
+    // Automatically record Forecast memory in vector database
+    try {
+      await recordForecastMemory({
+        userId: user.id,
+        currentBalance,
+        predictions,
+        insight,
+      });
+    } catch (err) {
+      console.warn("Forecast memory recording skipped:", err.message);
     }
 
     return {

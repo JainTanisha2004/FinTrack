@@ -11,9 +11,9 @@ const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
 
-const serializeAmount=(obj)=>({
+const serializeAmount = (obj) => ({
   ...obj,
-  amount:obj.amount.toNumber(),
+  amount: obj.amount.toNumber(),
 });
 
 function getReceiptScanErrorMessage(error) {
@@ -57,23 +57,23 @@ function parseReceiptResponse(text) {
   };
 }
 
-export async function createTransaction(data){
+export async function createTransaction(data) {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
     const req = await request();
 
-    const decision=await aj.protect(req,{
+    const decision = await aj.protect(req, {
       userId,
       requested: 1,
     })
 
-    if(decision.isDenied()){
-      if(decision.reason.isRateLimit()){
-        const {remaining, reset}=decision.reason;
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        const { remaining, reset } = decision.reason;
         console.error({
           code: "RATE_LIMIT_EXCEEDED",
-          details:{
+          details: {
             remaining,
             resetInSeconds: reset,
           },
@@ -104,7 +104,7 @@ export async function createTransaction(data){
       throw new Error("Account not found");
     }
 
-     const balanceChange = data.type === "EXPENSE" ? -data.amount : data.amount;
+    const balanceChange = data.type === "EXPENSE" ? -data.amount : data.amount;
     const newBalance = account.balance.toNumber() + balanceChange;
 
 
@@ -261,17 +261,32 @@ Return ONLY valid JSON.
 If this is not a receipt, return {}.
 `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const candidateModels = ["gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.7-flash", "gemini-3.8-flash"];
+    let result = null;
+    let lastError = null;
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64String,
-          mimeType: file.type,
-        },
-      },
-      prompt,
-    ]);
+    for (const m of candidateModels) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m });
+        result = await model.generateContent([
+          {
+            inlineData: {
+              data: base64String,
+              mimeType: file.type,
+            },
+          },
+          prompt,
+        ]);
+        if (result?.response?.text) break;
+      } catch (err) {
+        console.warn(`[scanReceipt] Model ${m} failed (${err.message})`);
+        lastError = err;
+      }
+    }
+
+    if (!result || !result.response) {
+      throw new Error(lastError?.message || "Failed to scan receipt with Gemini.");
+    }
 
     const text = result.response.text();
 

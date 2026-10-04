@@ -14,14 +14,15 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  clerkUserId   String    @unique // clerk user id
-  email         String    @unique
+  id            String        @id @default(uuid())
+  clerkUserId   String        @unique // clerk user id
+  email         String        @unique
   name          String?
   imageUrl      String?
   transactions  Transaction[]
   accounts      Account[]
   budgets       Budget[]
+  aiMemories    AIMemory[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -81,6 +82,23 @@ model Budget {
 
   @@index([userId])
   @@map("budgets")
+}
+
+model AIMemory {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType String   // MONTHLY_REPORT, AI_INSIGHT, FORECAST_SUMMARY, BUDGET_ALERT, RECOMMENDATION
+  month        String?  // e.g. "September 2026" or "2026-09"
+  title        String
+  content      String   @db.Text
+  embedding    Unsupported("vector(768)")?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([documentType])
+  @@map("ai_memories")
 }
 
 enum TransactionType {
